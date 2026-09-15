@@ -40,4 +40,4 @@ export interface Spec extends TurboModule {
   readonly onHingeAngleChange: CodegenTypes.EventEmitter<FoldingFeatureHingeAngleInfo>;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>('FoldingFeature');
+export default TurboModuleRegistry.get<Spec>('FoldingFeature');

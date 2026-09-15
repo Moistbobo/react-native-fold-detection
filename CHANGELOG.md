@@ -14,7 +14,12 @@
 ### Changed
 
 - `FoldingFeatureState`, `FoldingFeatureOrientation`, and `FoldingFeatureOcclusionType` are const objects rather than TypeScript enums, so codegen string unions satisfy them without casts. The runtime values are unchanged.
-- The example app is regenerated on React Native 0.86 (Gradle 9.3.1, AGP 8.7.2, Kotlin 2.1.20, Yarn 4, flat ESLint config).
+- The example app is regenerated on React Native 0.86 (Gradle 9.3.1, AGP 8.7.2, Yarn 4, flat ESLint config). The library compiles with Kotlin 2.0.21 by default and the example uses Kotlin 2.1.20.
+- Build tooling moves to CI. The lefthook and commitlint git hooks and their dependencies are removed; `ci.yml` runs lint, typecheck, test, and the Android and iOS builds.
+
+### Migration
+
+- Delete the `react-native.config.js` entry that disabled iOS autolinking. The package autolinks on iOS and `useFoldingFeature` returns the default values.
 
 ## 0.3.2
 
