@@ -1,7 +1,10 @@
 package com.folddetection
 
 import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
 import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -12,12 +15,17 @@ import androidx.window.java.layout.WindowInfoTrackerCallbackAdapter
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
-import java.util.concurrent.Executors
+import java.util.concurrent.Executor
 
 class FoldDetectionModule(reactContext: ReactApplicationContext) :
-  ReactContextBaseJavaModule(reactContext) {
+  ReactContextBaseJavaModule(reactContext),
+  LifecycleEventListener {
   private var windowInfoTracker: WindowInfoTrackerCallbackAdapter? = null
   private val layoutStateChangeCallback = LayoutStateChangeCallback()
+  private val callbackExecutor: Executor = Executor { command ->
+    Handler(Looper.getMainLooper()).post(command)
+  }
+  private var isListening = false
 
   init {
     val packageManager = reactContext.packageManager
@@ -25,6 +33,7 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
       windowInfoTracker =
         WindowInfoTrackerCallbackAdapter(WindowInfoTracker.getOrCreate(reactContext))
     }
+    reactContext.addLifecycleEventListener(this)
   }
 
   override fun getName(): String {
@@ -33,31 +42,66 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
 
   @ReactMethod
   fun startListening() {
+    isListening = true
+    bindToCurrentActivity()
+  }
+
+  @ReactMethod
+  fun stopListening() {
+    isListening = false
+    unregisterLayoutListener()
+  }
+
+  private fun bindToCurrentActivity() {
+    val tracker = windowInfoTracker
+    if (tracker == null) {
+      sendErrorEvent("This device does not support window layout info")
+      return
+    }
+
     val activity = currentActivity
+    if (activity == null) {
+      sendErrorEvent("Activity is null in startListening")
+      return
+    }
+
     try {
-      if (activity != null && windowInfoTracker != null) {
-        windowInfoTracker!!.addWindowLayoutInfoListener(
-          activity,
-          Executors.newSingleThreadExecutor(),
-          layoutStateChangeCallback
-        )
-      } else {
-        sendErrorEvent("Activity is null or device does not support fold feature in startListening")
-      }
+      // Remove first, then add, so the listener rebinds to the current Activity.
+      // WindowInfoTrackerCallbackAdapter dedupes by callback identity, so adding
+      // without removing would be a no-op and keep the old Activity registered.
+      tracker.removeWindowLayoutInfoListener(layoutStateChangeCallback)
+      tracker.addWindowLayoutInfoListener(activity, callbackExecutor, layoutStateChangeCallback)
     } catch (e: Exception) {
       sendErrorEvent("Error On startListening")
     }
   }
 
-  @ReactMethod
-  fun stopListening() {
+  private fun unregisterLayoutListener() {
     try {
-      if (windowInfoTracker != null) {
-        windowInfoTracker!!.removeWindowLayoutInfoListener(layoutStateChangeCallback)
-      }
+      windowInfoTracker?.removeWindowLayoutInfoListener(layoutStateChangeCallback)
     } catch (e: Exception) {
       sendErrorEvent("Error On stopListening")
     }
+  }
+
+  override fun onHostResume() {
+    if (isListening) {
+      bindToCurrentActivity()
+    }
+  }
+
+  override fun onHostPause() {
+    unregisterLayoutListener()
+  }
+
+  override fun onHostDestroy() {
+    unregisterLayoutListener()
+  }
+
+  override fun invalidate() {
+    unregisterLayoutListener()
+    reactApplicationContext.removeLifecycleEventListener(this)
+    super.invalidate()
   }
 
   inner class LayoutStateChangeCallback : Consumer<WindowLayoutInfo> {
