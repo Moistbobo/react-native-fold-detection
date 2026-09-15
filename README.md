@@ -59,6 +59,7 @@ const { layoutInfo, isTableTop, isBook, isFlat } = useFoldingFeature();
 | isTableTop | boolean    | false   | HALF_OPENED & HORIZONTAL                                                                                                 |
 | isBook     | boolean    | false   | HALF_OPENED & VERTICAL                                                                                                   |
 | isFlat     | boolean    | true    |                                                                                                                          |
+| hingeAngle | HingeAngleInfo | { supported: false, angle: null } | Live hinge angle in degrees (0..360) from `Sensor.TYPE_HINGE_ANGLE`. Android only.                                        |
 
 ## react-native-fold-detection is crafted mindfully at [Logicwind](https://www.logicwind.com?utm_source=github&utm_medium=github.com-logicwind&utm_campaign=react-native-fold-detection)
 
