@@ -1,17 +1,19 @@
 import { NativeEventEmitter, Platform } from 'react-native';
 
 import FoldingFeature from '../FoldingFeature';
-import type { LayoutInfo } from '../types';
+import type { HingeAngleInfo, LayoutInfo } from '../types';
 
 /**
- * Subscribes to fold layout updates and returns an unsubscribe function.
+ * Subscribes to fold layout and hinge angle updates and returns an unsubscribe
+ * function.
  *
  * The unsubscribe removes the JS listeners and stops the native listener. Not
  * stopping the native listener leaks the Activity it was registered against.
  */
 export function subscribeToFoldingFeature(
   onLayoutInfo: (layoutInfo: LayoutInfo) => void,
-  onError: (error: string) => void
+  onError: (error: string) => void,
+  onHingeAngle: (hingeAngle: HingeAngleInfo) => void
 ): () => void {
   if (Platform.OS === 'ios') {
     return () => {};
@@ -35,9 +37,17 @@ export function subscribeToFoldingFeature(
     }
   });
 
+  const hingeAngleSubscription = eventEmitter.addListener(
+    'onHingeAngleChange',
+    (event: HingeAngleInfo) => {
+      onHingeAngle(event);
+    }
+  );
+
   return () => {
     layoutSubscription.remove();
     errorSubscription.remove();
+    hingeAngleSubscription.remove();
     FoldingFeature.stopListening();
   };
 }

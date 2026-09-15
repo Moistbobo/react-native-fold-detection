@@ -1,9 +1,15 @@
 import React from 'react';
-import { SafeAreaView, StyleSheet, Text } from 'react-native';
+import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { useFoldingFeature } from '@logicwind/react-native-fold-detection';
 
 export default () => {
-  const { layoutInfo, isTableTop, isBook, isFlat } = useFoldingFeature();
+  const {
+    layoutInfo,
+    isTableTop,
+    isBook,
+    isFlat,
+    hingeAngle,
+  } = useFoldingFeature();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -31,6 +37,21 @@ export default () => {
       </Text>
       <Text style={styles.blockText}>isBook: {isBook ? 'true' : 'false'}</Text>
       <Text style={styles.blockText}>isFlat: {isFlat ? 'true' : 'false'}</Text>
+      <Text style={styles.header}>Hinge Angle: </Text>
+      <Text style={styles.blockText}>
+        supported: {hingeAngle.supported ? 'true' : 'false'}
+      </Text>
+      <Text style={styles.blockText}>
+        angle: {hingeAngle.angle === null ? 'null' : hingeAngle.angle}
+      </Text>
+      <View style={styles.hingeContainer}>
+        <View
+          style={[
+            styles.hingeBar,
+            { transform: [{ rotate: `${hingeAngle.angle ?? 0}deg` }] },
+          ]}
+        />
+      </View>
     </SafeAreaView>
   );
 };
@@ -46,5 +67,16 @@ const styles = StyleSheet.create({
   },
   blockText: {
     display: 'flex',
+  },
+  hingeContainer: {
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  hingeBar: {
+    width: 120,
+    height: 8,
+    backgroundColor: '#333333',
+    borderRadius: 4,
   },
 });

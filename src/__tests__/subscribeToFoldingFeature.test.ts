@@ -48,38 +48,50 @@ beforeEach(() => {
 
 describe('subscribeToFoldingFeature', () => {
   it('starts the native listener on subscribe', () => {
-    subscribeToFoldingFeature(jest.fn(), jest.fn());
+    subscribeToFoldingFeature(jest.fn(), jest.fn(), jest.fn());
 
     expect(mockedFeature.startListening).toHaveBeenCalledTimes(1);
     expect(mockedFeature.stopListening).not.toHaveBeenCalled();
   });
 
-  it('stops the native listener and removes both subscriptions on unsubscribe', () => {
-    const unsubscribe = subscribeToFoldingFeature(jest.fn(), jest.fn());
+  it('stops the native listener and removes every subscription on unsubscribe', () => {
+    const unsubscribe = subscribeToFoldingFeature(
+      jest.fn(),
+      jest.fn(),
+      jest.fn()
+    );
 
     unsubscribe();
 
-    expect(remove).toHaveBeenCalledTimes(2);
+    expect(remove).toHaveBeenCalledTimes(3);
     expect(mockedFeature.stopListening).toHaveBeenCalledTimes(1);
   });
 
-  it('forwards layout info and errors to the callbacks', () => {
+  it('forwards layout info, errors, and hinge angle to the callbacks', () => {
     const onLayoutInfo = jest.fn();
     const onError = jest.fn();
+    const onHingeAngle = jest.fn();
 
-    subscribeToFoldingFeature(onLayoutInfo, onError);
+    subscribeToFoldingFeature(onLayoutInfo, onError, onHingeAngle);
 
     emit('onLayoutInfoChange', { displayFeatures: { state: 'FLAT' } });
     expect(onLayoutInfo).toHaveBeenCalledWith({ state: 'FLAT' });
 
     emit('onError', { error: 'boom' });
     expect(onError).toHaveBeenCalledWith('boom');
+
+    emit('onHingeAngleChange', { supported: true, angle: 90 });
+    expect(onHingeAngle).toHaveBeenCalledWith({ supported: true, angle: 90 });
   });
 
   it('does nothing on iOS', () => {
     (Platform as { OS: string }).OS = 'ios';
 
-    const unsubscribe = subscribeToFoldingFeature(jest.fn(), jest.fn());
+    const unsubscribe = subscribeToFoldingFeature(
+      jest.fn(),
+      jest.fn(),
+      jest.fn()
+    );
 
     expect(mockedFeature.startListening).not.toHaveBeenCalled();
     unsubscribe();

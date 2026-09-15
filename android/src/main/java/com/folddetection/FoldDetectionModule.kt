@@ -1,6 +1,11 @@
 package com.folddetection
 
+import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Handler
 import android.os.Looper
 import com.facebook.react.bridge.Arguments
@@ -27,6 +32,32 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
   }
   private var isListening = false
 
+  private val sensorManager: SensorManager? =
+    reactContext.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+  private val hingeAngleSensor: Sensor? =
+    sensorManager?.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE)
+
+  private var isAngleListening = false
+  private var lastHingeAngle: Double? = null
+
+  private val hingeAngleListener = object : SensorEventListener {
+    override fun onSensorChanged(event: SensorEvent) {
+      val angle = event.values[0].toDouble()
+
+      if (angle == lastHingeAngle) {
+        return
+      }
+
+      lastHingeAngle = angle
+      val eventMap: WritableMap = Arguments.createMap()
+      eventMap.putBoolean("supported", true)
+      eventMap.putDouble("angle", angle)
+      sendEvent(reactApplicationContext, "onHingeAngleChange", eventMap)
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
+  }
+
   init {
     val packageManager = reactContext.packageManager
     if (packageManager.hasSystemFeature(PackageManager.FEATURE_SENSOR_HINGE_ANGLE)) {
@@ -44,12 +75,14 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
   fun startListening() {
     isListening = true
     bindToCurrentActivity()
+    startAngleListening()
   }
 
   @ReactMethod
   fun stopListening() {
     isListening = false
     unregisterLayoutListener()
+    stopAngleListening()
   }
 
   private fun bindToCurrentActivity() {
@@ -84,22 +117,51 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  private fun startAngleListening() {
+    if (isAngleListening) {
+      return
+    }
+
+    val sensor = hingeAngleSensor
+    if (sensor == null) {
+      isAngleListening = true
+      lastHingeAngle = null
+      val event: WritableMap = Arguments.createMap()
+      event.putBoolean("supported", false)
+      event.putNull("angle")
+      sendEvent(reactApplicationContext, "onHingeAngleChange", event)
+      return
+    }
+
+    isAngleListening = true
+    sensorManager?.registerListener(hingeAngleListener, sensor, SensorManager.SENSOR_DELAY_UI)
+  }
+
+  private fun stopAngleListening() {
+    isAngleListening = false
+    sensorManager?.unregisterListener(hingeAngleListener)
+  }
+
   override fun onHostResume() {
     if (isListening) {
       bindToCurrentActivity()
+      startAngleListening()
     }
   }
 
   override fun onHostPause() {
     unregisterLayoutListener()
+    stopAngleListening()
   }
 
   override fun onHostDestroy() {
     unregisterLayoutListener()
+    stopAngleListening()
   }
 
   override fun invalidate() {
     unregisterLayoutListener()
+    stopAngleListening()
     reactApplicationContext.removeLifecycleEventListener(this)
     super.invalidate()
   }

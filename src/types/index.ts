@@ -26,3 +26,8 @@ export type LayoutInfo = {
     right: number;
   };
 };
+
+export type HingeAngleInfo = {
+  supported: boolean;
+  angle: number | null;
+};

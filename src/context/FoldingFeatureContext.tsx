@@ -9,7 +9,7 @@ import React, {
 import { Platform } from 'react-native';
 
 import { subscribeToFoldingFeature } from './subscribeToFoldingFeature';
-import type { LayoutInfo } from '../types';
+import type { HingeAngleInfo, LayoutInfo } from '../types';
 import {
   FoldingFeatureOcclusionType,
   FoldingFeatureOrientation,
@@ -21,6 +21,7 @@ type FoldingFeatureContextProps = {
   isTableTop: boolean;
   isBook: boolean;
   isFlat: boolean;
+  hingeAngle: HingeAngleInfo;
 };
 
 export const FoldingFeatureContext = createContext<FoldingFeatureContextProps>({
@@ -35,6 +36,7 @@ export const FoldingFeatureContext = createContext<FoldingFeatureContextProps>({
   isTableTop: false,
   isBook: false,
   isFlat: true,
+  hingeAngle: { supported: false, angle: null },
 });
 
 export const useFoldingFeature = () => {
@@ -56,6 +58,7 @@ export const useFoldingFeature = () => {
       isTableTop: false,
       isBook: false,
       isFlat: true,
+      hingeAngle: { supported: false, angle: null },
     };
   }
 
@@ -85,6 +88,11 @@ const useProvideFunc = (): FoldingFeatureContextProps => {
     isFoldSupported: false,
   });
 
+  const [hingeAngle, setHingeAngle] = useState<HingeAngleInfo>({
+    supported: false,
+    angle: null,
+  });
+
   const updateLayoutInfo = (event: LayoutInfo) => {
     setLayoutInfo(event);
   };
@@ -108,9 +116,13 @@ const useProvideFunc = (): FoldingFeatureContextProps => {
   }, [isTableTop, isBook]);
 
   useEffect(() => {
-    return subscribeToFoldingFeature(updateLayoutInfo, (error) => {
-      console.log('FoldingFeature', error);
-    });
+    return subscribeToFoldingFeature(
+      updateLayoutInfo,
+      (error) => {
+        console.log('FoldingFeature', error);
+      },
+      setHingeAngle
+    );
   }, []);
 
   return {
@@ -118,5 +130,6 @@ const useProvideFunc = (): FoldingFeatureContextProps => {
     isTableTop,
     isBook,
     isFlat,
+    hingeAngle,
   };
 };
