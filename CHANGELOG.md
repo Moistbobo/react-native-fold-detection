@@ -1,3 +1,21 @@
+## 1.0.0
+
+### Breaking
+
+- Require React Native 0.86+ and the New Architecture. The legacy architecture is no longer supported.
+- The Android native module is now a TurboModule (codegen spec `NativeFoldingFeature`).
+- Build output is ESM only; the CommonJS bundle is dropped.
+
+### Added
+
+- Typed events `onLayoutInfoChange`, `onError`, and `onHingeAngleChange` declared in the codegen spec.
+- An iOS TurboModule implementation that is a no-op, so the package autolinks cleanly on iOS.
+
+### Changed
+
+- `FoldingFeatureState`, `FoldingFeatureOrientation`, and `FoldingFeatureOcclusionType` are const objects rather than TypeScript enums, so codegen string unions satisfy them without casts. The runtime values are unchanged.
+- The example app is regenerated on React Native 0.86 (Gradle 9.3.1, AGP 8.7.2, Kotlin 2.1.20, Yarn 4, flat ESLint config).
+
 ## 0.3.2
 
 - Fix: Invalid hook call ([#14](https://github.com/logicwind/react-native-fold-detection/issues/14))

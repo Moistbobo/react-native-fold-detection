@@ -1,6 +1,6 @@
 {
   "name": "@logicwind/react-native-fold-detection",
-  "version": "0.3.2",
+  "version": "1.0.0",
   "description": "The purpose of the package is to provide details regarding the Android folding capability.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
