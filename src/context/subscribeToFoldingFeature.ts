@@ -1,4 +1,4 @@
-import { NativeEventEmitter, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
 import FoldingFeature from '../FoldingFeature';
 import type { HingeAngleInfo, LayoutInfo } from '../types';
@@ -21,28 +21,12 @@ export function subscribeToFoldingFeature(
 
   FoldingFeature.startListening();
 
-  const eventEmitter = new NativeEventEmitter();
-  const layoutSubscription = eventEmitter.addListener(
-    'onLayoutInfoChange',
-    (event) => {
-      if (event?.displayFeatures) {
-        onLayoutInfo(event.displayFeatures);
-      }
-    }
+  const layoutSubscription = FoldingFeature.onLayoutInfoChange(onLayoutInfo);
+  const errorSubscription = FoldingFeature.onError((event) =>
+    onError(event.error)
   );
-
-  const errorSubscription = eventEmitter.addListener('onError', (event) => {
-    if (event?.error) {
-      onError(event.error);
-    }
-  });
-
-  const hingeAngleSubscription = eventEmitter.addListener(
-    'onHingeAngleChange',
-    (event: HingeAngleInfo) => {
-      onHingeAngle(event);
-    }
-  );
+  const hingeAngleSubscription =
+    FoldingFeature.onHingeAngleChange(onHingeAngle);
 
   return () => {
     layoutSubscription.remove();
