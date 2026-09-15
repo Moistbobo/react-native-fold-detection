@@ -1,19 +1,19 @@
+import type { PropsWithChildren } from 'react';
 import React, {
   createContext,
   useContext,
   useEffect,
   useMemo,
   useState,
-  type PropsWithChildren,
 } from 'react';
-import { NativeEventEmitter, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
-import FoldingFeature from '../FoldingFeature';
+import { subscribeToFoldingFeature } from './subscribeToFoldingFeature';
+import type { LayoutInfo } from '../types';
 import {
   FoldingFeatureOcclusionType,
   FoldingFeatureOrientation,
   FoldingFeatureState,
-  type LayoutInfo,
 } from '../types';
 
 type FoldingFeatureContextProps = {
@@ -46,13 +46,19 @@ export const useFoldingFeature = () => {
 
   if (Platform.OS === 'ios') {
     return {
-      layoutInfo: {},
+      layoutInfo: {
+        state: FoldingFeatureState.FLAT,
+        occlusionType: FoldingFeatureOcclusionType.NONE,
+        orientation: FoldingFeatureOrientation.VERTICAL,
+        isSeparating: false,
+        isFoldSupported: false,
+      },
       isTableTop: false,
       isBook: false,
       isFlat: true,
     };
   }
-  
+
   return context;
 };
 
@@ -60,7 +66,7 @@ export const FoldingFeatureProvider = ({ children }: PropsWithChildren<{}>) => {
   const value = useProvideFunc();
 
   if (Platform.OS === 'ios') {
-    return children;
+    return <>{children}</>;
   }
 
   return (
@@ -102,38 +108,9 @@ const useProvideFunc = (): FoldingFeatureContextProps => {
   }, [isTableTop, isBook]);
 
   useEffect(() => {
-    if (Platform.OS === 'ios') {
-      return; // Just return early from the effect
-    }
-
-    FoldingFeature.startListening();
-
-    const eventEmitter = new NativeEventEmitter();
-    const layoutSubscription = eventEmitter.addListener(
-      'onLayoutInfoChange',
-      (event) => {
-        if (event?.displayFeatures) {
-          const stringObject = JSON.stringify(event.displayFeatures);
-          const displayFeatures = JSON.parse(stringObject);
-          if (displayFeatures) {
-            // Now you can use these values as needed in your React Native component
-            updateLayoutInfo(displayFeatures);
-          }
-        }
-      }
-    );
-
-    const errorSubscription = eventEmitter.addListener('onError', (event) => {
-      if (event?.error) {
-        console.log('FoldingFeature', event.error);
-      }
+    return subscribeToFoldingFeature(updateLayoutInfo, (error) => {
+      console.log('FoldingFeature', error);
     });
-
-    return () => {
-      layoutSubscription.remove();
-      errorSubscription.remove();
-      FoldingFeature.stopListening();
-    };
   }, []);
 
   return {
