@@ -22,6 +22,7 @@ const FoldingFeature =
 
 interface FoldingFeatureInterface {
   startListening: () => void;
+  stopListening: () => void;
 }
 
 export function startFoldEventListener() {

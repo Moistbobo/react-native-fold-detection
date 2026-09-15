@@ -132,6 +132,7 @@ const useProvideFunc = (): FoldingFeatureContextProps => {
     return () => {
       layoutSubscription.remove();
       errorSubscription.remove();
+      FoldingFeature.stopListening();
     };
   }, []);
 
