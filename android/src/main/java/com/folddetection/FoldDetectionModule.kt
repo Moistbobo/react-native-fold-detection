@@ -1,7 +1,13 @@
 package com.folddetection
 
+import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -15,9 +21,36 @@ import androidx.window.layout.WindowLayoutInfo
 import java.util.concurrent.Executors
 
 class FoldDetectionModule(reactContext: ReactApplicationContext) :
-  ReactContextBaseJavaModule(reactContext) {
+  ReactContextBaseJavaModule(reactContext),
+  LifecycleEventListener {
   private var windowInfoTracker: WindowInfoTrackerCallbackAdapter? = null
   private val layoutStateChangeCallback = LayoutStateChangeCallback()
+
+  private val sensorManager: SensorManager? =
+    reactContext.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+  private val hingeAngleSensor: Sensor? =
+    sensorManager?.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE)
+
+  private var isAngleListening = false
+  private var lastHingeAngle: Double? = null
+
+  private val hingeAngleListener = object : SensorEventListener {
+    override fun onSensorChanged(event: SensorEvent) {
+      val angle = event.values[0].toDouble()
+
+      if (angle == lastHingeAngle) {
+        return
+      }
+
+      lastHingeAngle = angle
+      val eventMap: WritableMap = Arguments.createMap()
+      eventMap.putBoolean("supported", true)
+      eventMap.putDouble("angle", angle)
+      sendEvent(reactApplicationContext, "onHingeAngleChange", eventMap)
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
+  }
 
   init {
     val packageManager = reactContext.packageManager
@@ -25,6 +58,7 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
       windowInfoTracker =
         WindowInfoTrackerCallbackAdapter(WindowInfoTracker.getOrCreate(reactContext))
     }
+    reactApplicationContext.addLifecycleEventListener(this)
   }
 
   override fun getName(): String {
@@ -47,6 +81,7 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
     } catch (e: Exception) {
       sendErrorEvent("Error On startListening")
     }
+    startAngleListening()
   }
 
   @ReactMethod
@@ -58,6 +93,48 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
     } catch (e: Exception) {
       sendErrorEvent("Error On stopListening")
     }
+    stopAngleListening()
+  }
+
+  private fun startAngleListening() {
+    if (isAngleListening) {
+      return
+    }
+
+    val sensor = hingeAngleSensor
+    if (sensor == null) {
+      isAngleListening = true
+      lastHingeAngle = null
+      val event: WritableMap = Arguments.createMap()
+      event.putBoolean("supported", false)
+      event.putNull("angle")
+      sendEvent(reactApplicationContext, "onHingeAngleChange", event)
+      return
+    }
+
+    isAngleListening = true
+    sensorManager?.registerListener(hingeAngleListener, sensor, SensorManager.SENSOR_DELAY_UI)
+  }
+
+  private fun stopAngleListening() {
+    isAngleListening = false
+    sensorManager?.unregisterListener(hingeAngleListener)
+  }
+
+  override fun onHostResume() {
+    if (isAngleListening) {
+      val sensor = hingeAngleSensor ?: return
+      sensorManager?.registerListener(hingeAngleListener, sensor, SensorManager.SENSOR_DELAY_UI)
+    }
+  }
+
+  override fun onHostPause() {
+    sensorManager?.unregisterListener(hingeAngleListener)
+  }
+
+  override fun onHostDestroy() {
+    isAngleListening = false
+    sensorManager?.unregisterListener(hingeAngleListener)
   }
 
   inner class LayoutStateChangeCallback : Consumer<WindowLayoutInfo> {
