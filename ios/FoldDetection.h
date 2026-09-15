@@ -1,4 +1,5 @@
-#import <React/RCTBridgeModule.h>
+#import <FoldDetectionSpec/FoldDetectionSpec.h>
 
-@interface FoldDetection : NSObject <RCTBridgeModule>
+@interface FoldDetection : NSObject <NativeFoldDetectionSpec>
+
 @end
