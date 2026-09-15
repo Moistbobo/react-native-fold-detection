@@ -13,6 +13,7 @@ import {
   FoldingFeatureOcclusionType,
   FoldingFeatureOrientation,
   FoldingFeatureState,
+  type HingeAngleInfo,
   type LayoutInfo,
 } from '../types';
 
@@ -21,6 +22,7 @@ type FoldingFeatureContextProps = {
   isTableTop: boolean;
   isBook: boolean;
   isFlat: boolean;
+  hingeAngle: HingeAngleInfo;
 };
 
 export const FoldingFeatureContext = createContext<FoldingFeatureContextProps>({
@@ -35,6 +37,7 @@ export const FoldingFeatureContext = createContext<FoldingFeatureContextProps>({
   isTableTop: false,
   isBook: false,
   isFlat: true,
+  hingeAngle: { supported: false, angle: null },
 });
 
 export const useFoldingFeature = () => {
@@ -50,6 +53,7 @@ export const useFoldingFeature = () => {
       isTableTop: false,
       isBook: false,
       isFlat: true,
+      hingeAngle: { supported: false, angle: null },
     };
   }
   
@@ -77,6 +81,11 @@ const useProvideFunc = (): FoldingFeatureContextProps => {
     orientation: FoldingFeatureOrientation.VERTICAL,
     isSeparating: false,
     isFoldSupported: false,
+  });
+
+  const [hingeAngle, setHingeAngle] = useState<HingeAngleInfo>({
+    supported: false,
+    angle: null,
   });
 
   const updateLayoutInfo = (event: LayoutInfo) => {
@@ -129,9 +138,17 @@ const useProvideFunc = (): FoldingFeatureContextProps => {
       }
     });
 
+    const hingeAngleSubscription = eventEmitter.addListener(
+      'onHingeAngleChange',
+      (event: HingeAngleInfo) => {
+        setHingeAngle(event);
+      }
+    );
+
     return () => {
       layoutSubscription.remove();
       errorSubscription.remove();
+      hingeAngleSubscription.remove();
     };
   }, []);
 
@@ -140,5 +157,6 @@ const useProvideFunc = (): FoldingFeatureContextProps => {
     isTableTop,
     isBook,
     isFlat,
+    hingeAngle,
   };
 };
