@@ -6,6 +6,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Handler
+import android.os.Looper
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.bridge.ReactApplicationContext
@@ -18,13 +20,17 @@ import androidx.window.java.layout.WindowInfoTrackerCallbackAdapter
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
-import java.util.concurrent.Executors
+import java.util.concurrent.Executor
 
 class FoldDetectionModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext),
   LifecycleEventListener {
   private var windowInfoTracker: WindowInfoTrackerCallbackAdapter? = null
   private val layoutStateChangeCallback = LayoutStateChangeCallback()
+  private val callbackExecutor: Executor = Executor { command ->
+    Handler(Looper.getMainLooper()).post(command)
+  }
+  private var isListening = false
 
   private val sensorManager: SensorManager? =
     reactContext.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
@@ -58,7 +64,7 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
       windowInfoTracker =
         WindowInfoTrackerCallbackAdapter(WindowInfoTracker.getOrCreate(reactContext))
     }
-    reactApplicationContext.addLifecycleEventListener(this)
+    reactContext.addLifecycleEventListener(this)
   }
 
   override fun getName(): String {
@@ -67,33 +73,48 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
 
   @ReactMethod
   fun startListening() {
-    val activity = currentActivity
-    try {
-      if (activity != null && windowInfoTracker != null) {
-        windowInfoTracker!!.addWindowLayoutInfoListener(
-          activity,
-          Executors.newSingleThreadExecutor(),
-          layoutStateChangeCallback
-        )
-      } else {
-        sendErrorEvent("Activity is null or device does not support fold feature in startListening")
-      }
-    } catch (e: Exception) {
-      sendErrorEvent("Error On startListening")
-    }
+    isListening = true
+    bindToCurrentActivity()
     startAngleListening()
   }
 
   @ReactMethod
   fun stopListening() {
+    isListening = false
+    unregisterLayoutListener()
+    stopAngleListening()
+  }
+
+  private fun bindToCurrentActivity() {
+    val tracker = windowInfoTracker
+    if (tracker == null) {
+      sendErrorEvent("This device does not support window layout info")
+      return
+    }
+
+    val activity = currentActivity
+    if (activity == null) {
+      sendErrorEvent("Activity is null in startListening")
+      return
+    }
+
     try {
-      if (windowInfoTracker != null) {
-        windowInfoTracker!!.removeWindowLayoutInfoListener(layoutStateChangeCallback)
-      }
+      // Remove first, then add, so the listener rebinds to the current Activity.
+      // WindowInfoTrackerCallbackAdapter dedupes by callback identity, so adding
+      // without removing would be a no-op and keep the old Activity registered.
+      tracker.removeWindowLayoutInfoListener(layoutStateChangeCallback)
+      tracker.addWindowLayoutInfoListener(activity, callbackExecutor, layoutStateChangeCallback)
+    } catch (e: Exception) {
+      sendErrorEvent("Error On startListening")
+    }
+  }
+
+  private fun unregisterLayoutListener() {
+    try {
+      windowInfoTracker?.removeWindowLayoutInfoListener(layoutStateChangeCallback)
     } catch (e: Exception) {
       sendErrorEvent("Error On stopListening")
     }
-    stopAngleListening()
   }
 
   private fun startAngleListening() {
@@ -122,19 +143,27 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
   }
 
   override fun onHostResume() {
-    if (isAngleListening) {
-      val sensor = hingeAngleSensor ?: return
-      sensorManager?.registerListener(hingeAngleListener, sensor, SensorManager.SENSOR_DELAY_UI)
+    if (isListening) {
+      bindToCurrentActivity()
+      startAngleListening()
     }
   }
 
   override fun onHostPause() {
-    sensorManager?.unregisterListener(hingeAngleListener)
+    unregisterLayoutListener()
+    stopAngleListening()
   }
 
   override fun onHostDestroy() {
-    isAngleListening = false
-    sensorManager?.unregisterListener(hingeAngleListener)
+    unregisterLayoutListener()
+    stopAngleListening()
+  }
+
+  override fun invalidate() {
+    unregisterLayoutListener()
+    stopAngleListening()
+    reactApplicationContext.removeLifecycleEventListener(this)
+    super.invalidate()
   }
 
   inner class LayoutStateChangeCallback : Consumer<WindowLayoutInfo> {
