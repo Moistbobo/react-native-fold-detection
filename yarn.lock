@@ -2042,8 +2042,8 @@ __metadata:
     "@eslint/js": "npm:^9.39.5"
     "@jest/globals": "npm:^29.7.0"
     "@react-native/babel-preset": "npm:0.86.3"
-    "@react-native/eslint-config": "npm:0.86.2"
-    "@react-native/jest-preset": "npm:0.86.2"
+    "@react-native/eslint-config": "npm:0.86.3"
+    "@react-native/jest-preset": "npm:0.86.3"
     "@types/react": "npm:^19.2.0"
     del-cli: "npm:^7.0.0"
     eslint: "npm:^9.39.5"
@@ -2422,13 +2422,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@react-native/eslint-config@npm:0.86.2":
-  version: 0.86.2
-  resolution: "@react-native/eslint-config@npm:0.86.2"
+"@react-native/eslint-config@npm:0.86.3":
+  version: 0.86.3
+  resolution: "@react-native/eslint-config@npm:0.86.3"
   dependencies:
     "@babel/core": "npm:^7.25.2"
     "@babel/eslint-parser": "npm:^7.25.1"
-    "@react-native/eslint-plugin": "npm:0.86.2"
+    "@react-native/eslint-plugin": "npm:0.86.3"
     "@typescript-eslint/eslint-plugin": "npm:^8.36.0"
     "@typescript-eslint/parser": "npm:^8.36.0"
     eslint-config-prettier: "npm:^8.5.0"
@@ -2441,14 +2441,14 @@ __metadata:
   peerDependencies:
     eslint: ^8.0.0 || ^9.0.0
     prettier: ">=2"
-  checksum: 10c0/4daa5362bf99a12b60a5a8b7a2e7e00f2a81472017bf5eea2fe42de05c954371f87e75296edc66bc1192dec4af0b5c45c42f24bea5d1acf2d63742b9ff192452
+  checksum: 10c0/9eac5fe1b2aa59bb6f1ceb11e90e8d13fe5e063696da360b3e736cd2c99e00a522132e9cd9d96418deffa4d908297feb3f5cd138638c2cb3953af01f6a59b940
   languageName: node
   linkType: hard
 
-"@react-native/eslint-plugin@npm:0.86.2":
-  version: 0.86.2
-  resolution: "@react-native/eslint-plugin@npm:0.86.2"
-  checksum: 10c0/b883f8666d207e2d30b67606dcdee836eb01ba7cb132f4484d6269253a5c037375e0d56d207b40ae9051166a706db48f29f57a732c3048807e0c48e5cec1533a
+"@react-native/eslint-plugin@npm:0.86.3":
+  version: 0.86.3
+  resolution: "@react-native/eslint-plugin@npm:0.86.3"
+  checksum: 10c0/423024e2e916f99e5d1761a973ae1c0f681f41429610051db838ae970c19327b25145a1c657a37c721c10956142f1e132d0190fcf442edcb210c3d4a1b557b9f
   languageName: node
   linkType: hard
 
@@ -2456,21 +2456,6 @@ __metadata:
   version: 0.86.3
   resolution: "@react-native/gradle-plugin@npm:0.86.3"
   checksum: 10c0/ebbf2959e99990e97eb16892e6e9b7d9115b8710ce7759a33e7fe3b58610e451841ef4fa58b4820230680dd9af4cee6a39916952f2dfc5463396a4aad80f88f6
-  languageName: node
-  linkType: hard
-
-"@react-native/jest-preset@npm:0.86.2":
-  version: 0.86.2
-  resolution: "@react-native/jest-preset@npm:0.86.2"
-  dependencies:
-    "@jest/create-cache-key-function": "npm:^29.7.0"
-    "@react-native/js-polyfills": "npm:0.86.2"
-    babel-jest: "npm:^29.7.0"
-    jest-environment-node: "npm:^29.7.0"
-    regenerator-runtime: "npm:^0.13.2"
-  peerDependencies:
-    react: ^19.2.3
-  checksum: 10c0/ae6b0665a74f98a86c04eb761360bc854258f98b35f2eb1977cdad7b3e50cee66f6c7c6a9b4486d1eec5102f9c8ac68ba234fcee18ea9ca44ba3737d406ed8ec
   languageName: node
   linkType: hard
 
@@ -2486,13 +2471,6 @@ __metadata:
   peerDependencies:
     react: ^19.2.3
   checksum: 10c0/6eddbd33e3e057a04e0ddd44ad0a40f36f122095aa9709004d5e608da97314452ca023df63c69592fa0efe58a98de2eb166c015fd130d39140476ed5d3c321d6
-  languageName: node
-  linkType: hard
-
-"@react-native/js-polyfills@npm:0.86.2":
-  version: 0.86.2
-  resolution: "@react-native/js-polyfills@npm:0.86.2"
-  checksum: 10c0/184c7d2815f79b55bd960f2f76919841a2e4959d9957b159f4d364319e225bf41fdf5eb14c533cafce0cba2e2e47a8ad734e99d82eba7effeca3ccd1282f1f49
   languageName: node
   linkType: hard
 
