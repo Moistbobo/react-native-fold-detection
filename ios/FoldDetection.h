@@ -1,5 +1,5 @@
 #import <FoldDetectionSpec/FoldDetectionSpec.h>
 
-@interface FoldDetection : NSObject <NativeFoldDetectionSpec>
+@interface FoldDetection : NSObject <NativeFoldingFeatureSpec>
 
 @end

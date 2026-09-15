@@ -1,21 +1,24 @@
 #import "FoldDetection.h"
 
 @implementation FoldDetection
-- (NSNumber *)multiply:(double)a b:(double)b {
-    NSNumber *result = @(a * b);
 
-    return result;
+- (void)startListening
+{
+}
+
+- (void)stopListening
+{
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {
-    return std::make_shared<facebook::react::NativeFoldDetectionSpecJSI>(params);
+    return std::make_shared<facebook::react::NativeFoldingFeatureSpecJSI>(params);
 }
 
 + (NSString *)moduleName
 {
-  return @"FoldDetection";
+    return @"FoldingFeature";
 }
 
 @end
