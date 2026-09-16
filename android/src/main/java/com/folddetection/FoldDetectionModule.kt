@@ -8,22 +8,19 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Handler
 import android.os.Looper
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.LifecycleEventListener
-import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.bridge.ReactContextBaseJavaModule
-import com.facebook.react.bridge.ReactMethod
-import com.facebook.react.bridge.WritableMap
-import com.facebook.react.modules.core.DeviceEventManagerModule
 import androidx.core.util.Consumer
 import androidx.window.java.layout.WindowInfoTrackerCallbackAdapter
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.LifecycleEventListener
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.WritableMap
 import java.util.concurrent.Executor
 
 class FoldDetectionModule(reactContext: ReactApplicationContext) :
-  ReactContextBaseJavaModule(reactContext),
+  NativeFoldingFeatureSpec(reactContext),
   LifecycleEventListener {
   private var windowInfoTracker: WindowInfoTrackerCallbackAdapter? = null
   private val layoutStateChangeCallback = LayoutStateChangeCallback()
@@ -52,7 +49,7 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
       val eventMap: WritableMap = Arguments.createMap()
       eventMap.putBoolean("supported", true)
       eventMap.putDouble("angle", angle)
-      sendEvent(reactApplicationContext, "onHingeAngleChange", eventMap)
+      emitOnHingeAngleChange(eventMap)
     }
 
     override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
@@ -67,19 +64,13 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
     reactContext.addLifecycleEventListener(this)
   }
 
-  override fun getName(): String {
-    return "FoldingFeature"
-  }
-
-  @ReactMethod
-  fun startListening() {
+  override fun startListening() {
     isListening = true
     bindToCurrentActivity()
     startAngleListening()
   }
 
-  @ReactMethod
-  fun stopListening() {
+  override fun stopListening() {
     isListening = false
     unregisterLayoutListener()
     stopAngleListening()
@@ -92,7 +83,7 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
       return
     }
 
-    val activity = currentActivity
+    val activity = reactApplicationContext.currentActivity
     if (activity == null) {
       sendErrorEvent("Activity is null in startListening")
       return
@@ -129,7 +120,7 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
       val event: WritableMap = Arguments.createMap()
       event.putBoolean("supported", false)
       event.putNull("angle")
-      sendEvent(reactApplicationContext, "onHingeAngleChange", event)
+      emitOnHingeAngleChange(event)
       return
     }
 
@@ -167,11 +158,9 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
   }
 
   inner class LayoutStateChangeCallback : Consumer<WindowLayoutInfo> {
-    override fun accept(newLayoutInfo: WindowLayoutInfo) {
-      val event: WritableMap = Arguments.createMap()
-
+    override fun accept(value: WindowLayoutInfo) {
       try {
-        val displayFeaturesList = newLayoutInfo.displayFeatures
+        val displayFeaturesList = value.displayFeatures
         val packageManager = reactApplicationContext.packageManager
         val featureSupported =
           packageManager.hasSystemFeature(PackageManager.FEATURE_SENSOR_HINGE_ANGLE)
@@ -179,28 +168,24 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
         if (displayFeaturesList.isNotEmpty()) {
           val feature = displayFeaturesList[0] // Assuming there's only one feature
 
-          val featureObject = Arguments.createMap()
-
           if (feature is FoldingFeature) {
-            val foldingFeature = feature as FoldingFeature
-            featureObject.putString("state", foldingFeature.state.toString())
-            featureObject.putString("orientation", foldingFeature.orientation.toString())
-            featureObject.putBoolean("isSeparating", foldingFeature.isSeparating)
-            featureObject.putString("occlusionType", foldingFeature.occlusionType.toString())
+            val featureObject = Arguments.createMap()
+            featureObject.putString("state", feature.state.toString())
+            featureObject.putString("orientation", feature.orientation.toString())
+            featureObject.putBoolean("isSeparating", feature.isSeparating)
+            featureObject.putString("occlusionType", feature.occlusionType.toString())
             featureObject.putBoolean("isFoldSupported", featureSupported)
 
             // Parse and include detailed bounds information
-            val bounds = parseBoundsString(foldingFeature.bounds.toString())
+            val bounds = parseBoundsString(feature.bounds.toString())
             featureObject.putMap("bounds", bounds)
-          }
 
-          event.putMap("displayFeatures", featureObject)
+            emitOnLayoutInfoChange(featureObject)
+          }
         }
       } catch (e: Exception) {
-        event.putString("displayFeatures", "Error parsing displayFeatures")
+        sendErrorEvent("Error parsing displayFeatures")
       }
-
-      sendEvent(reactApplicationContext, "onLayoutInfoChange", event)
     }
 
     private fun parseBoundsString(boundsString: String): WritableMap {
@@ -224,19 +209,13 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  private fun sendEvent(
-    reactContext: ReactApplicationContext,
-    eventName: String,
-    params: WritableMap
-  ) {
-    reactContext
-      .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-      .emit(eventName, params)
-  }
-
   private fun sendErrorEvent(errorMessage: String) {
     val event: WritableMap = Arguments.createMap()
     event.putString("error", errorMessage)
-    sendEvent(reactApplicationContext, "onError", event)
+    emitOnError(event)
+  }
+
+  companion object {
+    const val NAME = NativeFoldingFeatureSpec.NAME
   }
 }

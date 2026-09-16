@@ -1,33 +1,32 @@
-export enum FoldingFeatureState {
-  FLAT = 'FLAT',
-  HALF_OPENED = 'HALF_OPENED',
-}
+import type {
+  FoldingFeatureHingeAngleInfo,
+  FoldingFeatureLayoutInfo,
+} from '../NativeFoldingFeature';
 
-export enum FoldingFeatureOrientation {
-  VERTICAL = 'VERTICAL',
-  HORIZONTAL = 'HORIZONTAL',
-}
+export const FoldingFeatureState = {
+  FLAT: 'FLAT',
+  HALF_OPENED: 'HALF_OPENED',
+} as const;
 
-export enum FoldingFeatureOcclusionType {
-  NONE = 'NONE',
-  FULL = 'FULL',
-}
+export type FoldingFeatureState =
+  (typeof FoldingFeatureState)[keyof typeof FoldingFeatureState];
 
-export type LayoutInfo = {
-  state: FoldingFeatureState;
-  occlusionType: FoldingFeatureOcclusionType;
-  orientation: FoldingFeatureOrientation;
-  isSeparating: boolean;
-  isFoldSupported: boolean;
-  bounds?: {
-    top: number;
-    bottom: number;
-    left: number;
-    right: number;
-  };
-};
+export const FoldingFeatureOrientation = {
+  VERTICAL: 'VERTICAL',
+  HORIZONTAL: 'HORIZONTAL',
+} as const;
 
-export type HingeAngleInfo = {
-  supported: boolean;
-  angle: number | null;
-};
+export type FoldingFeatureOrientation =
+  (typeof FoldingFeatureOrientation)[keyof typeof FoldingFeatureOrientation];
+
+export const FoldingFeatureOcclusionType = {
+  NONE: 'NONE',
+  FULL: 'FULL',
+} as const;
+
+export type FoldingFeatureOcclusionType =
+  (typeof FoldingFeatureOcclusionType)[keyof typeof FoldingFeatureOcclusionType];
+
+export type LayoutInfo = FoldingFeatureLayoutInfo;
+
+export type HingeAngleInfo = FoldingFeatureHingeAngleInfo;

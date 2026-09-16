@@ -1,0 +1,10 @@
+# iOS build evidence for the fold-detection TurboModule port (RN 0.86.3).
+# Captured from: xcodebuild -workspace example/ios/FoldDetectionExample.xcworkspace -scheme FoldDetectionExample -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' build
+
+[Codegen] Processing FoldDetectionSpec
+[Codegen] Generating Native Code for FoldDetectionSpec - ios
+CompileC /tmp/fd-ios-dd/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/ReactCodegen.build/Objects-normal/arm64/FoldDetectionSpec-generated.o /Users/mrbobo/WebstormProjects/react-native-fold-detection/exampl
+CompileC /tmp/fd-ios-dd/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/react-native-fold-detection.build/Objects-normal/arm64/FoldDetection.o /Users/mrbobo/WebstormProjects/react-native-fold-detection/ios/F
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -x objective-c++ -ivfsstatcache /tmp/fd-ios-dd/SDKStatCaches.noindex/iphonesimulator26.5-23F81a-6cfe768891a92b912361537c460
+** BUILD SUCCEEDED **
+line 7309:** BUILD SUCCEEDED **

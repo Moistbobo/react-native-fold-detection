@@ -9,21 +9,13 @@ npm install @logicwind/react-native-fold-detection
 ```
 
 
+## Requirements
+
+This package is a Turbo Native Module and requires React Native 0.86 or newer with the New Architecture enabled. The legacy architecture is not supported.
+
 ## iOS
 
-You'll need to disable auto-linking for this package.
-To do so, create react-native.config.js in the root of your project with this content:
-```js
-module.exports = {
-  dependencies: {
-    "react-native-fold-detection": {
-      platforms: {
-        ios: null, // this will disable autolinking for this package on iOS
-      },
-    },
-  },
-};
-```
+The module is autolinked on iOS and is a no-op. `useFoldingFeature` returns the default values and no events are emitted.
 
 ## In App.js Wrap your app with FoldingFeatureProvider
 

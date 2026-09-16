@@ -1,4 +1,16 @@
-import { NativeEventEmitter, Platform } from 'react-native';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { Platform } from 'react-native';
+
+const mockStartListening = jest.fn();
+const mockStopListening = jest.fn();
+const mockLayoutSubscription = { remove: jest.fn() };
+const mockErrorSubscription = { remove: jest.fn() };
+const mockHingeAngleSubscription = { remove: jest.fn() };
+
+let mockLayoutListener: ((event: unknown) => void) | undefined;
+let mockErrorListener: ((event: { error: string }) => void) | undefined;
+let mockHingeAngleListener:
+  ((event: { supported: boolean; angle: number | null }) => void) | undefined;
 
 jest.mock('react-native', () => ({
   Platform: {
@@ -6,52 +18,45 @@ jest.mock('react-native', () => ({
     select: (options: { android?: string; default?: string }) =>
       options.android ?? options.default,
   },
-  NativeEventEmitter: jest.fn(),
 }));
 
 jest.mock('../FoldingFeature', () => ({
   __esModule: true,
-  default: { startListening: jest.fn(), stopListening: jest.fn() },
+  default: {
+    startListening: () => mockStartListening(),
+    stopListening: () => mockStopListening(),
+    onLayoutInfoChange: (listener: (event: unknown) => void) => {
+      mockLayoutListener = listener;
+      return mockLayoutSubscription;
+    },
+    onError: (listener: (event: { error: string }) => void) => {
+      mockErrorListener = listener;
+      return mockErrorSubscription;
+    },
+    onHingeAngleChange: (
+      listener: (event: { supported: boolean; angle: number | null }) => void
+    ) => {
+      mockHingeAngleListener = listener;
+      return mockHingeAngleSubscription;
+    },
+  },
 }));
 
-import FoldingFeature from '../FoldingFeature';
 import { subscribeToFoldingFeature } from '../context/subscribeToFoldingFeature';
-
-const mockedEmitter = (NativeEventEmitter as unknown) as jest.Mock;
-const mockedFeature = (FoldingFeature as unknown) as {
-  startListening: jest.Mock;
-  stopListening: jest.Mock;
-};
-
-let listeners: Record<string, (event: any) => void>;
-let remove: jest.Mock;
-
-const emit = (name: string, event: unknown) => {
-  const callback = listeners[name];
-  if (!callback) {
-    throw new Error(`No listener registered for ${name}`);
-  }
-  callback(event);
-};
 
 beforeEach(() => {
   jest.clearAllMocks();
-  listeners = {};
-  remove = jest.fn();
-  mockedEmitter.mockImplementation(() => ({
-    addListener: (name: string, callback: (event: any) => void) => {
-      listeners[name] = callback;
-      return { remove };
-    },
-  }));
+  mockLayoutListener = undefined;
+  mockErrorListener = undefined;
+  mockHingeAngleListener = undefined;
 });
 
 describe('subscribeToFoldingFeature', () => {
   it('starts the native listener on subscribe', () => {
     subscribeToFoldingFeature(jest.fn(), jest.fn(), jest.fn());
 
-    expect(mockedFeature.startListening).toHaveBeenCalledTimes(1);
-    expect(mockedFeature.stopListening).not.toHaveBeenCalled();
+    expect(mockStartListening).toHaveBeenCalledTimes(1);
+    expect(mockStopListening).not.toHaveBeenCalled();
   });
 
   it('stops the native listener and removes every subscription on unsubscribe', () => {
@@ -63,8 +68,10 @@ describe('subscribeToFoldingFeature', () => {
 
     unsubscribe();
 
-    expect(remove).toHaveBeenCalledTimes(3);
-    expect(mockedFeature.stopListening).toHaveBeenCalledTimes(1);
+    expect(mockLayoutSubscription.remove).toHaveBeenCalledTimes(1);
+    expect(mockErrorSubscription.remove).toHaveBeenCalledTimes(1);
+    expect(mockHingeAngleSubscription.remove).toHaveBeenCalledTimes(1);
+    expect(mockStopListening).toHaveBeenCalledTimes(1);
   });
 
   it('forwards layout info, errors, and hinge angle to the callbacks', () => {
@@ -74,18 +81,18 @@ describe('subscribeToFoldingFeature', () => {
 
     subscribeToFoldingFeature(onLayoutInfo, onError, onHingeAngle);
 
-    emit('onLayoutInfoChange', { displayFeatures: { state: 'FLAT' } });
+    mockLayoutListener?.({ state: 'FLAT' });
     expect(onLayoutInfo).toHaveBeenCalledWith({ state: 'FLAT' });
 
-    emit('onError', { error: 'boom' });
+    mockErrorListener?.({ error: 'boom' });
     expect(onError).toHaveBeenCalledWith('boom');
 
-    emit('onHingeAngleChange', { supported: true, angle: 90 });
+    mockHingeAngleListener?.({ supported: true, angle: 90 });
     expect(onHingeAngle).toHaveBeenCalledWith({ supported: true, angle: 90 });
   });
 
   it('does nothing on iOS', () => {
-    (Platform as { OS: string }).OS = 'ios';
+    (Platform as unknown as { OS: string }).OS = 'ios';
 
     const unsubscribe = subscribeToFoldingFeature(
       jest.fn(),
@@ -93,10 +100,10 @@ describe('subscribeToFoldingFeature', () => {
       jest.fn()
     );
 
-    expect(mockedFeature.startListening).not.toHaveBeenCalled();
+    expect(mockStartListening).not.toHaveBeenCalled();
     unsubscribe();
-    expect(mockedFeature.stopListening).not.toHaveBeenCalled();
+    expect(mockStopListening).not.toHaveBeenCalled();
 
-    (Platform as { OS: string }).OS = 'android';
+    (Platform as unknown as { OS: string }).OS = 'android';
   });
 });

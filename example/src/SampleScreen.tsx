@@ -1,15 +1,9 @@
-import React from 'react';
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { useFoldingFeature } from '@logicwind/react-native-fold-detection';
 
 export default () => {
-  const {
-    layoutInfo,
-    isTableTop,
-    isBook,
-    isFlat,
-    hingeAngle,
-  } = useFoldingFeature();
+  const { layoutInfo, isTableTop, isBook, isFlat, hingeAngle } =
+    useFoldingFeature();
 
   return (
     <SafeAreaView style={styles.container}>
