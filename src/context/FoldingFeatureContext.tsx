@@ -3,12 +3,18 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { subscribeToFoldingFeature } from './subscribeToFoldingFeature';
-import type { HingeAngleInfo, LayoutInfo } from '../types';
-import {
-  FoldingFeatureOcclusionType,
-  FoldingFeatureOrientation,
-  FoldingFeatureState,
+import FoldingFeature from '../FoldingFeature';
+import { projectLegacyLayoutInfo } from '../pure/displayFeature';
+import type {
+  HingeAngleInfo,
+  LayoutInfo,
+  SupportedPosture,
+  WindowLayoutInfo,
 } from '../types';
+import { FoldingFeatureOrientation, FoldingFeatureState } from '../types';
+
+const initialLayoutInfo = (): LayoutInfo =>
+  projectLegacyLayoutInfo({ displayFeatures: [] });
 
 type FoldingFeatureContextProps = {
   layoutInfo: LayoutInfo;
@@ -16,21 +22,17 @@ type FoldingFeatureContextProps = {
   isBook: boolean;
   isFlat: boolean;
   hingeAngle: HingeAngleInfo;
+  supportedPostures: SupportedPosture[];
 };
 
 export const FoldingFeatureContext = createContext<FoldingFeatureContextProps>({
-  layoutInfo: {
-    state: FoldingFeatureState.FLAT,
-    occlusionType: FoldingFeatureOcclusionType.NONE,
-    orientation: FoldingFeatureOrientation.VERTICAL,
-    isSeparating: false,
-    isFoldSupported: false,
-  },
+  layoutInfo: initialLayoutInfo(),
   // helper state
   isTableTop: false,
   isBook: false,
   isFlat: true,
   hingeAngle: { supported: false, angle: null },
+  supportedPostures: [],
 });
 
 export const useFoldingFeature = () => {
@@ -42,17 +44,12 @@ export const useFoldingFeature = () => {
 
   if (Platform.OS === 'ios') {
     return {
-      layoutInfo: {
-        state: FoldingFeatureState.FLAT,
-        occlusionType: FoldingFeatureOcclusionType.NONE,
-        orientation: FoldingFeatureOrientation.VERTICAL,
-        isSeparating: false,
-        isFoldSupported: false,
-      },
+      layoutInfo: initialLayoutInfo(),
       isTableTop: false,
       isBook: false,
       isFlat: true,
       hingeAngle: { supported: false, angle: null },
+      supportedPostures: [],
     };
   }
 
@@ -74,21 +71,19 @@ export const FoldingFeatureProvider = ({ children }: PropsWithChildren<{}>) => {
 };
 
 const useProvideFunc = (): FoldingFeatureContextProps => {
-  const [layoutInfo, setLayoutInfo] = useState<LayoutInfo>({
-    state: FoldingFeatureState.FLAT,
-    occlusionType: FoldingFeatureOcclusionType.NONE,
-    orientation: FoldingFeatureOrientation.VERTICAL,
-    isSeparating: false,
-    isFoldSupported: false,
-  });
+  const [layoutInfo, setLayoutInfo] = useState<LayoutInfo>(initialLayoutInfo);
 
   const [hingeAngle, setHingeAngle] = useState<HingeAngleInfo>({
     supported: false,
     angle: null,
   });
 
-  const updateLayoutInfo = (event: LayoutInfo) => {
-    setLayoutInfo(event);
+  const [supportedPostures, setSupportedPostures] = useState<
+    SupportedPosture[]
+  >([]);
+
+  const updateLayoutInfo = (info: WindowLayoutInfo) => {
+    setLayoutInfo(projectLegacyLayoutInfo(info));
   };
 
   const isTableTop = useMemo(() => {
@@ -110,13 +105,29 @@ const useProvideFunc = (): FoldingFeatureContextProps => {
   }, [isTableTop, isBook]);
 
   useEffect(() => {
-    return subscribeToFoldingFeature(
+    let active = true;
+
+    const unsubscribe = subscribeToFoldingFeature(
       updateLayoutInfo,
       (error) => {
         console.log('FoldingFeature', error);
       },
       setHingeAngle
     );
+
+    FoldingFeature.getSupportedPostures().then(
+      (postures) => {
+        if (active) {
+          setSupportedPostures(postures);
+        }
+      },
+      () => {}
+    );
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   return {
@@ -125,5 +136,6 @@ const useProvideFunc = (): FoldingFeatureContextProps => {
     isBook,
     isFlat,
     hingeAngle,
+    supportedPostures,
   };
 };

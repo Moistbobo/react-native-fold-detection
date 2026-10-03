@@ -21,7 +21,13 @@ cd "$ROOT/example/android"
 "$ADB" -s "$SERIAL" install -r "$APK"
 "$ADB" -s "$SERIAL" logcat -c
 "$ADB" -s "$SERIAL" shell am start -n "$PKG/.MainActivity"
-sleep 8
+
+for _ in $(seq 1 30); do
+  if "$ADB" -s "$SERIAL" logcat -d | grep -q "Running \"FoldDetectionExample\""; then
+    break
+  fi
+  sleep 2
+done
 
 "$ADB" -s "$SERIAL" logcat -d | grep "Running \"FoldDetectionExample\"" \
   || { echo "FAIL: the JS bundle did not start"; exit 1; }

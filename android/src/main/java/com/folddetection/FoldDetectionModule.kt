@@ -1,7 +1,8 @@
 package com.folddetection
 
+import android.app.Activity
 import android.content.Context
-import android.content.pm.PackageManager
+import android.graphics.Rect
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -9,12 +10,18 @@ import android.hardware.SensorManager
 import android.os.Handler
 import android.os.Looper
 import androidx.core.util.Consumer
+import androidx.window.WindowSdkExtensions
+import androidx.window.core.layout.WindowSizeClass
+import androidx.window.core.layout.computeWindowSizeClass
 import androidx.window.java.layout.WindowInfoTrackerCallbackAdapter
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
+import androidx.window.layout.WindowMetrics
+import androidx.window.layout.WindowMetricsCalculator
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.LifecycleEventListener
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.WritableMap
 import java.util.concurrent.Executor
@@ -28,6 +35,7 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
     Handler(Looper.getMainLooper()).post(command)
   }
   private var isListening = false
+  private var lastWindowLayoutInfo: WindowLayoutInfo? = null
 
   private val sensorManager: SensorManager? =
     reactContext.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
@@ -56,11 +64,8 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
   }
 
   init {
-    val packageManager = reactContext.packageManager
-    if (packageManager.hasSystemFeature(PackageManager.FEATURE_SENSOR_HINGE_ANGLE)) {
-      windowInfoTracker =
-        WindowInfoTrackerCallbackAdapter(WindowInfoTracker.getOrCreate(reactContext))
-    }
+    windowInfoTracker =
+      WindowInfoTrackerCallbackAdapter(WindowInfoTracker.getOrCreate(reactContext))
     reactContext.addLifecycleEventListener(this)
   }
 
@@ -157,55 +162,160 @@ class FoldDetectionModule(reactContext: ReactApplicationContext) :
     super.invalidate()
   }
 
-  inner class LayoutStateChangeCallback : Consumer<WindowLayoutInfo> {
-    override fun accept(value: WindowLayoutInfo) {
-      try {
-        val displayFeaturesList = value.displayFeatures
-        val packageManager = reactApplicationContext.packageManager
-        val featureSupported =
-          packageManager.hasSystemFeature(PackageManager.FEATURE_SENSOR_HINGE_ANGLE)
+  override fun computeCurrentWindowMetrics(promise: Promise) {
+    resolveWindowMetrics(promise) {
+      WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(it)
+    }
+  }
 
-        if (displayFeaturesList.isNotEmpty()) {
-          val feature = displayFeaturesList[0] // Assuming there's only one feature
+  override fun computeMaximumWindowMetrics(promise: Promise) {
+    resolveWindowMetrics(promise) {
+      WindowMetricsCalculator.getOrCreate().computeMaximumWindowMetrics(it)
+    }
+  }
 
-          if (feature is FoldingFeature) {
-            val featureObject = Arguments.createMap()
-            featureObject.putString("state", feature.state.toString())
-            featureObject.putString("orientation", feature.orientation.toString())
-            featureObject.putBoolean("isSeparating", feature.isSeparating)
-            featureObject.putString("occlusionType", feature.occlusionType.toString())
-            featureObject.putBoolean("isFoldSupported", featureSupported)
+  override fun getSupportedPostures(promise: Promise) {
+    try {
+      if (WindowSdkExtensions.getInstance().extensionVersion < 6) {
+        promise.resolve(Arguments.createArray())
+        return
+      }
 
-            // Parse and include detailed bounds information
-            val bounds = parseBoundsString(feature.bounds.toString())
-            featureObject.putMap("bounds", bounds)
+      val postures = Arguments.createArray()
+      val tracker = WindowInfoTracker.getOrCreate(reactApplicationContext)
+      for (posture in tracker.supportedPostures) {
+        postures.pushString(posture.toString())
+      }
+      promise.resolve(postures)
+    } catch (e: Exception) {
+      promise.reject("E_SUPPORTED_POSTURES", e.message ?: "Failed to read supported postures", e)
+    }
+  }
 
-            emitOnLayoutInfoChange(featureObject)
-          }
-        }
-      } catch (e: Exception) {
-        sendErrorEvent("Error parsing displayFeatures")
+  override fun getWindowLayoutInfo(promise: Promise) {
+    try {
+      val activity = reactApplicationContext.currentActivity
+      if (WindowSdkExtensions.getInstance().extensionVersion >= 9 && activity != null) {
+        val tracker = WindowInfoTracker.getOrCreate(reactApplicationContext)
+        promise.resolve(buildLayoutInfo(tracker.getCurrentWindowLayoutInfo(activity)))
+        return
+      }
+
+      val cached = lastWindowLayoutInfo
+      val layoutInfo = if (cached != null) {
+        buildLayoutInfo(cached)
+      } else {
+        buildLayoutInfo(WindowLayoutInfo(emptyList()))
+      }
+      promise.resolve(layoutInfo)
+    } catch (e: Exception) {
+      promise.reject("E_WINDOW_LAYOUT_INFO", e.message ?: "Failed to read window layout info", e)
+    }
+  }
+
+  override fun getWindowSizeClass(breakpoints: String, promise: Promise) {
+    val activity = reactApplicationContext.currentActivity
+    if (activity == null) {
+      promise.reject("E_NO_ACTIVITY", "No current Activity")
+      return
+    }
+
+    try {
+      val metrics = WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(activity)
+      val breakpointSet = if (breakpoints == "V2") {
+        WindowSizeClass.BREAKPOINTS_V2
+      } else {
+        WindowSizeClass.BREAKPOINTS_V1
+      }
+      val sizeClass = breakpointSet.computeWindowSizeClass(metrics.widthDp, metrics.heightDp)
+
+      val result = Arguments.createMap()
+      result.putString("widthSizeClass", widthSizeClassOf(sizeClass))
+      result.putString("heightSizeClass", heightSizeClassOf(sizeClass))
+      result.putDouble("widthDp", metrics.widthDp.toDouble())
+      result.putDouble("heightDp", metrics.heightDp.toDouble())
+      promise.resolve(result)
+    } catch (e: Exception) {
+      promise.reject("E_WINDOW_SIZE_CLASS", e.message ?: "Failed to compute window size class", e)
+    }
+  }
+
+  private fun resolveWindowMetrics(promise: Promise, compute: (Activity) -> WindowMetrics) {
+    val activity = reactApplicationContext.currentActivity
+    if (activity == null) {
+      promise.reject("E_NO_ACTIVITY", "No current Activity")
+      return
+    }
+
+    try {
+      promise.resolve(metricsToWritableMap(compute(activity)))
+    } catch (e: Exception) {
+      promise.reject("E_WINDOW_METRICS", e.message ?: "Failed to compute window metrics", e)
+    }
+  }
+
+  private fun widthSizeClassOf(sizeClass: WindowSizeClass): String = when {
+    sizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND) -> "EXPANDED"
+    sizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) -> "MEDIUM"
+    else -> "COMPACT"
+  }
+
+  private fun heightSizeClassOf(sizeClass: WindowSizeClass): String = when {
+    sizeClass.isHeightAtLeastBreakpoint(WindowSizeClass.HEIGHT_DP_EXPANDED_LOWER_BOUND) -> "EXPANDED"
+    sizeClass.isHeightAtLeastBreakpoint(WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND) -> "MEDIUM"
+    else -> "COMPACT"
+  }
+
+  private fun metricsToWritableMap(metrics: WindowMetrics): WritableMap {
+    val map = Arguments.createMap()
+    map.putMap("bounds", rectToWritableMap(metrics.bounds))
+    map.putDouble("density", metrics.density.toDouble())
+    map.putDouble("widthDp", metrics.widthDp.toDouble())
+    map.putDouble("heightDp", metrics.heightDp.toDouble())
+    return map
+  }
+
+  private fun rectToWritableMap(rect: Rect): WritableMap {
+    val map = Arguments.createMap()
+    map.putInt("left", rect.left)
+    map.putInt("top", rect.top)
+    map.putInt("right", rect.right)
+    map.putInt("bottom", rect.bottom)
+    return map
+  }
+
+  private fun buildLayoutInfo(value: WindowLayoutInfo): WritableMap {
+    val displayFeatures = Arguments.createArray()
+    for (feature in value.displayFeatures) {
+      if (feature is FoldingFeature) {
+        displayFeatures.pushMap(foldingFeatureToWritableMap(feature))
       }
     }
 
-    private fun parseBoundsString(boundsString: String): WritableMap {
-      val bounds = Arguments.createMap()
-      val regex = Regex(".*\\((\\d+), (\\d+) - (\\d+), (\\d+)\\)")
-      val matchResult = regex.find(boundsString)
+    val map = Arguments.createMap()
+    map.putArray("displayFeatures", displayFeatures)
+    return map
+  }
 
-      if (matchResult != null && matchResult.groupValues.size == 5) {
-        val left = matchResult.groupValues[1].toInt()
-        val top = matchResult.groupValues[2].toInt()
-        val right = matchResult.groupValues[3].toInt()
-        val bottom = matchResult.groupValues[4].toInt()
+  private fun foldingFeatureToWritableMap(feature: FoldingFeature): WritableMap {
+    val map = Arguments.createMap()
+    map.putString("type", "FOLDING")
+    map.putMap("bounds", rectToWritableMap(feature.bounds))
+    map.putString("state", feature.state.toString())
+    map.putString("orientation", feature.orientation.toString())
+    map.putString("occlusionType", feature.occlusionType.toString())
+    map.putBoolean("isSeparating", feature.isSeparating)
+    return map
+  }
 
-        bounds.putInt("left", left)
-        bounds.putInt("top", top)
-        bounds.putInt("right", right)
-        bounds.putInt("bottom", bottom)
+  inner class LayoutStateChangeCallback : Consumer<WindowLayoutInfo> {
+    override fun accept(value: WindowLayoutInfo) {
+      lastWindowLayoutInfo = value
+      try {
+        emitOnLayoutInfoChange(buildLayoutInfo(value))
+      } catch (e: Exception) {
+        sendErrorEvent("Error parsing displayFeatures")
       }
-
-      return bounds
     }
   }
 
