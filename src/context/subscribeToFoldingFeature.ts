@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 import FoldingFeature from '../FoldingFeature';
-import type { HingeAngleInfo, LayoutInfo } from '../types';
+import type { HingeAngleInfo, WindowLayoutInfo } from '../types';
 
 /**
  * Subscribes to fold layout and hinge angle updates and returns an unsubscribe
@@ -11,7 +11,7 @@ import type { HingeAngleInfo, LayoutInfo } from '../types';
  * stopping the native listener leaks the Activity it was registered against.
  */
 export function subscribeToFoldingFeature(
-  onLayoutInfo: (layoutInfo: LayoutInfo) => void,
+  onLayoutInfo: (info: WindowLayoutInfo) => void,
   onError: (error: string) => void,
   onHingeAngle: (hingeAngle: HingeAngleInfo) => void
 ): () => void {

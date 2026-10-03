@@ -81,8 +81,8 @@ describe('subscribeToFoldingFeature', () => {
 
     subscribeToFoldingFeature(onLayoutInfo, onError, onHingeAngle);
 
-    mockLayoutListener?.({ state: 'FLAT' });
-    expect(onLayoutInfo).toHaveBeenCalledWith({ state: 'FLAT' });
+    mockLayoutListener?.({ displayFeatures: [] });
+    expect(onLayoutInfo).toHaveBeenCalledWith({ displayFeatures: [] });
 
     mockErrorListener?.({ error: 'boom' });
     expect(onError).toHaveBeenCalledWith('boom');

@@ -1,9 +1,37 @@
+import { useEffect, useState } from 'react';
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { useFoldingFeature } from '@logicwind/react-native-fold-detection';
+import {
+  getSupportedPostures,
+  getWindowLayoutInfo,
+  useFoldingFeature,
+  useWindowMetrics,
+  useWindowSizeClass,
+} from '@logicwind/react-native-fold-detection';
+import type {
+  SupportedPosture,
+  WindowLayoutInfo,
+} from '@logicwind/react-native-fold-detection';
 
 export default () => {
-  const { layoutInfo, isTableTop, isBook, isFlat, hingeAngle } =
-    useFoldingFeature();
+  const {
+    layoutInfo,
+    isTableTop,
+    isBook,
+    isFlat,
+    hingeAngle,
+    supportedPostures,
+  } = useFoldingFeature();
+  const { metrics } = useWindowMetrics();
+  const { sizeClass } = useWindowSizeClass();
+  const [pulledPostures, setPulledPostures] = useState<SupportedPosture[]>([]);
+  const [pulledLayout, setPulledLayout] = useState<WindowLayoutInfo | null>(
+    null
+  );
+
+  useEffect(() => {
+    getSupportedPostures().then(setPulledPostures, () => {});
+    getWindowLayoutInfo().then(setPulledLayout, () => {});
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -24,6 +52,28 @@ export default () => {
       </Text>
       <Text style={styles.blockText}>
         isFoldSupported: {`${JSON.stringify(layoutInfo.isFoldSupported)}`}
+      </Text>
+      <Text style={styles.blockText}>
+        displayFeatures: {layoutInfo.displayFeatures.length}
+      </Text>
+      <Text style={styles.blockText}>
+        supportedPostures: {supportedPostures.join(', ')}
+      </Text>
+      <Text style={styles.blockText}>
+        pulledPostures: {pulledPostures.join(', ')}
+      </Text>
+      <Text style={styles.blockText}>
+        pulledLayoutFeatures: {pulledLayout?.displayFeatures.length ?? -1}
+      </Text>
+      <Text style={styles.header}>Window: </Text>
+      <Text style={styles.blockText}>
+        metrics: {metrics ? `${metrics.widthDp}x${metrics.heightDp}dp` : 'null'}
+      </Text>
+      <Text style={styles.blockText}>
+        sizeClass:{' '}
+        {sizeClass
+          ? `${sizeClass.widthSizeClass}/${sizeClass.heightSizeClass}`
+          : 'null'}
       </Text>
       <Text style={styles.header}>Helpers: </Text>
       <Text style={styles.blockText}>
